@@ -50,6 +50,6 @@ not "what causes wins" in a strict sense.
 
 ## Testing
 
-Run `pytest` for the unit tests (16 tests across pipeline_def, build output,
+Run `pytest` for the unit tests (15 tests across pipeline_def, build output,
 and the API). The Postman collection testing the live deployment lives in
 `postman/pga-win-predictor.postman_collection.json`.
