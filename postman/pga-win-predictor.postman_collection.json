@@ -1,0 +1,108 @@
+{
+  "info": {
+    "name": "PGA Tour Win Predictor",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://esmit289--pga-win-predictor-fastapi-app.modal.run"
+    }
+  ],
+  "item": [
+    {
+      "name": "GET /info (health + artifact description)",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/info"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('has metadata and feature_bounds', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json).to.have.property('metadata');",
+              "    pm.expect(json).to.have.property('feature_bounds');",
+              "    pm.expect(json.metadata).to.have.property('sklearn_version');",
+              "    pm.expect(json.metadata).to.have.property('built_at');",
+              "    pm.expect(json.metadata).to.have.property('steps');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "POST /predict (valid input -> 200)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"scoring_avg\": 71.498,\n  \"driving_distance\": 300.15,\n  \"driving_accuracy_pct\": 60.64,\n  \"gir_pct\": 63.24,\n  \"putting_avg\": 1.766,\n  \"putts_per_round\": 29.105,\n  \"scrambling_pct\": 58.25,\n  \"sand_save_pct\": 48.7,\n  \"sg_total\": -0.356,\n  \"sg_off_the_tee\": -0.172,\n  \"sg_approach\": -0.312,\n  \"sg_around_green\": -0.114,\n  \"sg_putting\": -0.066,\n  \"birdie_avg\": 3.7,\n  \"birdie_or_better_pct\": 21.015,\n  \"bogey_avoidance_pct\": 18.245,\n  \"season\": 2024\n}"
+        },
+        "url": "{{base_url}}/predict"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('response has prediction fields', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json).to.have.property('predicted_win_season');",
+              "    pm.expect(json).to.have.property('win_probability');",
+              "    pm.expect(json.win_probability).to.be.within(0, 1);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "POST /predict (out-of-bounds input -> 422)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"scoring_avg\": 1074.865,\n  \"driving_distance\": 300.15,\n  \"driving_accuracy_pct\": 60.64,\n  \"gir_pct\": 63.24,\n  \"putting_avg\": 1.766,\n  \"putts_per_round\": 29.105,\n  \"scrambling_pct\": 58.25,\n  \"sand_save_pct\": 48.7,\n  \"sg_total\": -0.356,\n  \"sg_off_the_tee\": -0.172,\n  \"sg_approach\": -0.312,\n  \"sg_around_green\": -0.114,\n  \"sg_putting\": -0.066,\n  \"birdie_avg\": 3.7,\n  \"birdie_or_better_pct\": 21.015,\n  \"bogey_avoidance_pct\": 18.245,\n  \"season\": 2024\n}"
+        },
+        "url": "{{base_url}}/predict"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 422', function () {",
+              "    pm.response.to.have.status(422);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
