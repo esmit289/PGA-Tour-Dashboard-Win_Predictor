@@ -1,6 +1,10 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 import serve
+
+ARTIFACT_PATH = Path(__file__).resolve().parents[1] / "pipeline.joblib"
 
 client = TestClient(serve.app)
 
@@ -64,4 +68,4 @@ def test_missing_artifact_returns_503_on_predict(monkeypatch):
 def joblib_bundle_for_valid_payload():
     import joblib
 
-    return joblib.load("pipeline.joblib")
+    return joblib.load(ARTIFACT_PATH)

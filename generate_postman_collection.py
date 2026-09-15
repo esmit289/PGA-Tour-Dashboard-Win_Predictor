@@ -11,11 +11,21 @@ import sys
 import joblib
 
 
+LOWER_IS_BETTER = {"scoring_avg", "putting_avg", "putts_per_round", "bogey_avoidance_pct"}
+
+
+def near_best_value(col, b):
+    span = b["max"] - b["min"]
+    if col in LOWER_IS_BETTER:
+        return round(b["min"] + 0.10 * span, 3)
+    return round(b["min"] + 0.90 * span, 3)
+
+
 def build_collection(base_url: str) -> dict:
     bundle = joblib.load("pipeline.joblib")
     bounds = bundle["feature_bounds"]
 
-    valid_body = {col: round((b["min"] + b["max"]) / 2, 3) for col, b in bounds.items()}
+    valid_body = {col: near_best_value(col, b) for col, b in bounds.items()}
     valid_body["season"] = 2024
 
     invalid_body = dict(valid_body)

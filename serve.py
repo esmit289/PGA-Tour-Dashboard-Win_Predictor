@@ -56,6 +56,11 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def root():
+    return {"status": "ok", "docs": "/docs", "info": "/info"}
+
+
 def _require_bundle():
     if _bundle is None:
         raise HTTPException(status_code=503, detail=f"Model artifact not loaded: {_load_error}")

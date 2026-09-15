@@ -1,9 +1,13 @@
+from pathlib import Path
+
 import joblib
 import pandas as pd
 
+ARTIFACT_PATH = Path(__file__).resolve().parents[1] / "pipeline.joblib"
+
 
 def test_artifact_has_expected_structure():
-    bundle = joblib.load("pipeline.joblib")
+    bundle = joblib.load(ARTIFACT_PATH)
     assert set(bundle.keys()) == {
         "pipeline",
         "feature_columns",
@@ -19,7 +23,7 @@ def test_artifact_has_expected_structure():
 
 
 def test_artifact_can_predict():
-    bundle = joblib.load("pipeline.joblib")
+    bundle = joblib.load(ARTIFACT_PATH)
     row = {col: bounds["min"] for col, bounds in bundle["feature_bounds"].items()}
     row[bundle["season_column"]] = 2023
     df = pd.DataFrame([row])
