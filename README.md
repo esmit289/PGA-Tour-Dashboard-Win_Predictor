@@ -22,6 +22,6 @@ on that project's Supabase `player_season_stats` table.
 
 ## Live URLs
 
-- Modal API: _fill in after `modal deploy`_
-- API docs: _Modal URL_ + `/docs`
+- Modal API: https://esmit289--pga-win-predictor-fastapi-app.modal.run
+- API docs: https://esmit289--pga-win-predictor-fastapi-app.modal.run/docs
 - Vercel page using this API: https://pga-tour-dashboard.vercel.app/win-predictor
