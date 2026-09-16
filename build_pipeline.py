@@ -114,15 +114,21 @@ def build_pipeline() -> Pipeline:
     # reweighting costs ~0.003 AUC (0.766 -> 0.763, verified via 5-fold CV)
     # and brings the "average player" prediction back in line with reality.
     #
-    # C=10 (default is 1.0, i.e. 10x less L2 regularization): the default
+    # C=50 (default is 1.0, i.e. 50x less L2 regularization): the default
     # shrinks coefficients enough that even a maxed-out-everywhere stat line
-    # can only reach ~97% (verified by direct sigmoid(intercept + sum of
-    # favorable coefficients) computation), and a realistic (not literally
-    # perfect-on-every-stat) dominant profile landed at 86%. C=10 lets the
-    # same fitted decision boundary express more confidence at the extremes
-    # -- the maxed-out ceiling rises to ~99.8% and a realistic dominant
-    # profile reaches ~92% -- while 5-fold CV AUC is unchanged (0.764) and
-    # the "average player" calibration point barely moves (11.2% -> 10.9%).
+    # can only reach ~97%, and a realistic (not literally perfect-on-every-
+    # stat) dominant profile landed at 86%. Sweeping C from 1 to 5000 (5-fold
+    # CV, AUC unchanged the whole way) shows the realistic-dominant-profile
+    # prediction rises with C but genuinely plateaus around 92% by C=50 --
+    # past that point it's flat no matter how high C goes, because several
+    # of the 16 stats are naturally correlated with each other in the real
+    # data (e.g. GIR% and Scrambling% partially trade off once driving/SG
+    # stats are already in the model), which caps how confident a *linear*
+    # model can get about any realistic, non-adversarial input regardless
+    # of regularization strength. C=50 captures the full available gain
+    # from this lever: maxed-out-everywhere ceiling ~99.9%, a realistic
+    # dominant profile ~92%, "average player" calibration point unchanged
+    # (~10.7%), 5-fold CV AUC unchanged (0.763).
     return Pipeline(
         [
             (
@@ -131,7 +137,7 @@ def build_pipeline() -> Pipeline:
                     feature_columns=FEATURE_COLUMNS, season_column=SEASON_COLUMN
                 ),
             ),
-            ("clf", LogisticRegression(max_iter=1000, C=10.0)),
+            ("clf", LogisticRegression(max_iter=1000, C=50.0)),
         ]
     )
 

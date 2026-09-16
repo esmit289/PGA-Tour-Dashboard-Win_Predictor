@@ -44,14 +44,22 @@ flag), so calibration and range matter more than 0.5-threshold accuracy:
   (0.766 vs 0.764) but skewed `predict_proba()` upward for the minority
   (win) class -- an all-tour-average stat line came out to a 36% win chance
   under balanced weighting, well above the true ~20% base rate.
-- `C=10` instead of the default `1.0` (10x less L2 regularization). The
+- `C=50` instead of the default `1.0` (50x less L2 regularization). The
   default shrinks coefficients enough that even a maxed-out-every-stat
   profile can only reach ~97%, and a realistic (not literally perfect)
-  dominant profile landed at 86%. `C=10` keeps the same fitted decision
-  boundary but lets it express more confidence at the extremes -- the
-  maxed-out ceiling rises to ~99.8% and a realistic dominant profile
-  reaches ~92% -- while AUC and the "average player" calibration point are
-  unaffected.
+  dominant profile landed at 86%. Raising `C` lets the same fitted decision
+  boundary express more confidence at the extremes, but this genuinely
+  plateaus by `C=50` (swept up to `C=5000` with 5-fold CV -- AUC and the
+  "average player" calibration point are flat across the whole range, and a
+  realistic dominant profile stays pinned at ~92% no matter how much higher
+  `C` goes). That plateau is not a tuning artifact: several of the 16 stats
+  are naturally correlated with each other in the real data (e.g. GIR% and
+  Scrambling% partially trade off once driving/SG stats are already in the
+  model), which caps how confident a *linear* model can get about any
+  realistic, non-adversarial input, independent of regularization strength.
+  `C=50` captures the full available gain from this lever: a maxed-out-
+  literally-everywhere profile reaches ~99.9%, a realistic dominant profile
+  reaches ~92%.
 
 Note on interpreting the coefficients: several features are structurally
 correlated (`sg_total` is the arithmetic sum of `sg_off_the_tee` +
