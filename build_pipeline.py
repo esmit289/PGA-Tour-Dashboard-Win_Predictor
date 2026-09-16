@@ -113,6 +113,16 @@ def build_pipeline() -> Pipeline:
     # calibration matters more than threshold accuracy here. Dropping the
     # reweighting costs ~0.003 AUC (0.766 -> 0.763, verified via 5-fold CV)
     # and brings the "average player" prediction back in line with reality.
+    #
+    # C=10 (default is 1.0, i.e. 10x less L2 regularization): the default
+    # shrinks coefficients enough that even a maxed-out-everywhere stat line
+    # can only reach ~97% (verified by direct sigmoid(intercept + sum of
+    # favorable coefficients) computation), and a realistic (not literally
+    # perfect-on-every-stat) dominant profile landed at 86%. C=10 lets the
+    # same fitted decision boundary express more confidence at the extremes
+    # -- the maxed-out ceiling rises to ~99.8% and a realistic dominant
+    # profile reaches ~92% -- while 5-fold CV AUC is unchanged (0.764) and
+    # the "average player" calibration point barely moves (11.2% -> 10.9%).
     return Pipeline(
         [
             (
@@ -121,7 +131,7 @@ def build_pipeline() -> Pipeline:
                     feature_columns=FEATURE_COLUMNS, season_column=SEASON_COLUMN
                 ),
             ),
-            ("clf", LogisticRegression(max_iter=1000)),
+            ("clf", LogisticRegression(max_iter=1000, C=10.0)),
         ]
     )
 

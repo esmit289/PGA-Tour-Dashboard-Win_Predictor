@@ -33,16 +33,25 @@ on that project's Supabase `player_season_stats` table.
 5-fold stratified cross-validation on the 1,919 player-seasons used for
 training (19.6% of which included at least one win):
 
-- ROC AUC: 0.763
-- Balanced accuracy: 0.610
+- ROC AUC: 0.764
+- Balanced accuracy: ~0.61 (varies slightly by C, see below)
 
-The classifier is deliberately trained *without* `class_weight="balanced"`.
-Balanced weighting barely changed AUC (0.766 vs 0.763) but skewed
-`predict_proba()` upward for the minority (win) class -- an all-tour-average
-stat line came out to a 36% win chance under balanced weighting, well above
-the true ~20% base rate. Since this app's headline number *is*
-win_probability (not just a win/no-win flag), calibration matters more than
-threshold accuracy here, so the unweighted model is the one that's deployed.
+Two deliberate departures from scikit-learn's defaults, both chosen because
+this app's headline number *is* win_probability (not just a win/no-win
+flag), so calibration and range matter more than 0.5-threshold accuracy:
+
+- No `class_weight="balanced"`. Balanced weighting barely changed AUC
+  (0.766 vs 0.764) but skewed `predict_proba()` upward for the minority
+  (win) class -- an all-tour-average stat line came out to a 36% win chance
+  under balanced weighting, well above the true ~20% base rate.
+- `C=10` instead of the default `1.0` (10x less L2 regularization). The
+  default shrinks coefficients enough that even a maxed-out-every-stat
+  profile can only reach ~97%, and a realistic (not literally perfect)
+  dominant profile landed at 86%. `C=10` keeps the same fitted decision
+  boundary but lets it express more confidence at the extremes -- the
+  maxed-out ceiling rises to ~99.8% and a realistic dominant profile
+  reaches ~92% -- while AUC and the "average player" calibration point are
+  unaffected.
 
 Note on interpreting the coefficients: several features are structurally
 correlated (`sg_total` is the arithmetic sum of `sg_off_the_tee` +
