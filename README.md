@@ -35,11 +35,11 @@ monotonic constraints (not the more common choice of a plain
 `LogisticRegression` -- see "Why gradient boosting" below for the full
 story of that switch).
 
-5-fold stratified cross-validation on the 1,919 player-seasons used for
-training (19.6% of which included at least one win):
+5-fold stratified cross-validation on the 1,973 player-seasons used for
+training (19.2% of which included at least one win):
 
-- ROC AUC: 0.742
-- Balanced accuracy: 0.639
+- ROC AUC: 0.747
+- Balanced accuracy: 0.629
 
 ### Why gradient boosting, not logistic regression
 
@@ -75,6 +75,35 @@ In exchange, a realistic dominant profile's predicted win chance rises from
 for this project: it's a class assignment meant to be fun to play with, not
 a production system where the extra AUC would matter more than the more
 satisfying (and now guaranteed-intuitive-direction) predictions.
+
+### Why not Strokes Gained
+
+The original 16 features included Strokes Gained (`sg_total` and its 4
+components: off-the-tee, approach, around-the-green, putting). SG compares
+every shot to the field average that round, which requires tournament-grade
+shot tracking (ShotLink) -- data only the PGA Tour itself can produce. A
+recreational golfer can never generate an SG number about their own game,
+no matter how good they are, which undercuts the "plug in your own stats
+and see" premise of this tool.
+
+The 5 SG stats (plus `birdie_avg`, redundant with `birdie_or_better_pct`)
+were replaced with 6 stats any golfer can compute from their own scorecard,
+sourced from the same PGA Tour dataset's extended stats table:
+
+| Replaced | With | Why |
+|---|---|---|
+| `sg_total` | `birdie_to_bogey_ratio` | One number summarizing a round's quality -- count birdies, count bogeys, divide. |
+| `sg_off_the_tee` | `par5_scoring_avg` | Reaching a par 5 in two strokes rewards long, well-placed drives. |
+| `sg_approach` | `par3_scoring_avg` | On a par 3, the tee shot *is* the approach shot -- a clean proxy for iron precision. |
+| `sg_around_green` | `bounce_back` | % of holes where a bogey is immediately followed by a birdie-or-better -- short-game recovery and mental composure. |
+| `sg_putting` | `three_putt_avoidance` | % of holes *without* a 3-putt -- a distinct putting signal from `putting_avg`/`putts_per_round`, and the number amateurs actually track ("did I 3-putt today"). |
+| `birdie_avg` | `par4_scoring_avg` | Rounds out the par-3/4/5 scoring breakdown; `birdie_avg` was redundant with `birdie_or_better_pct`. |
+
+Retraining on this feature set barely moved model quality (ROC AUC 0.742 ->
+0.747, balanced accuracy 0.639 -> 0.629 -- noise-level differences), and a
+dominant profile still reaches ~99% predicted win chance, confirming the
+amateur-trackable stats carry comparable signal to Strokes Gained for this
+model.
 
 ### Reading the "what leads to tournament wins" chart
 

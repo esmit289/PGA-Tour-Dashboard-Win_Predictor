@@ -5,6 +5,7 @@ Usage:
     python3 build_pipeline.py
 """
 import json
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
@@ -24,7 +25,10 @@ SUPABASE_ANON_KEY = "sb_publishable_DVuVnzIpFOD7gCTqWT1JKw_mLcQjSp5"
 
 # Deliberately excludes wins/top_10/official_money/fedexcup_*/world_rank*/
 # all_around_*/finish_*/*_rank -- those are outcomes (or close proxies) of
-# winning, not skill inputs to it.
+# winning, not skill inputs to it. Also excludes Strokes Gained (sg_total
+# and its 4 components) and birdie_avg (redundant with birdie_or_better_pct)
+# in favor of 6 stats a recreational golfer can self-track from their own
+# scorecard -- see EXTENDED_STAT_CONFIG below for where those come from.
 FEATURE_COLUMNS = [
     "scoring_avg",
     "driving_distance",
@@ -34,12 +38,12 @@ FEATURE_COLUMNS = [
     "putts_per_round",
     "scrambling_pct",
     "sand_save_pct",
-    "sg_total",
-    "sg_off_the_tee",
-    "sg_approach",
-    "sg_around_green",
-    "sg_putting",
-    "birdie_avg",
+    "par3_scoring_avg",
+    "par4_scoring_avg",
+    "par5_scoring_avg",
+    "three_putt_avoidance",
+    "bounce_back",
+    "birdie_to_bogey_ratio",
     "birdie_or_better_pct",
     "bogey_avoidance_pct",
 ]
@@ -47,10 +51,34 @@ SEASON_COLUMN = "season"
 TARGET_COLUMN = "has_win"
 MAX_MISSING_FEATURES = 8  # drop a row if more than half its features are null
 
+# The amateur-friendly replacements for Strokes Gained live in the
+# long-format player_extended_stats table (season, player_id, stat_key,
+# stat_name, numeric_value). Each stat_key bundles several stat_name
+# sub-metrics -- e.g. par4_scoring_avg also has "Total Strokes" and "Total
+# Holes" rows alongside the actual "Avg" we want -- so this pins down which
+# stat_name is the real per-hole/per-round metric for each key.
+EXTENDED_STAT_CONFIG = {
+    "par3_scoring_avg": "Avg",
+    "par4_scoring_avg": "Avg",
+    "par5_scoring_avg": "Avg",
+    "three_putt_avoidance": "%",
+    "bounce_back": "%",
+    "birdie_to_bogey_ratio": "Birdie to Bogey Ratio",
+}
+
 # Stats where a LOWER raw value is the better golf outcome. Used both to
 # impose monotonic constraints on the classifier (see build_pipeline())
 # and to sign the permutation-importance chart the frontend displays.
-LOWER_IS_BETTER = {"scoring_avg", "putting_avg", "putts_per_round", "bogey_avoidance_pct"}
+LOWER_IS_BETTER = {
+    "scoring_avg",
+    "putting_avg",
+    "putts_per_round",
+    "bogey_avoidance_pct",
+    "par3_scoring_avg",
+    "par4_scoring_avg",
+    "par5_scoring_avg",
+    "three_putt_avoidance",
+}
 
 # Deliberately much wider than any real player's stat line -- this is a
 # "what if" toy, not a strict validity check. SeasonPercentileTransformer
@@ -66,19 +94,20 @@ FEATURE_INPUT_BOUNDS = {
     "putts_per_round": {"min": 0.0, "max": 100.0},
     "scrambling_pct": {"min": 0.0, "max": 100.0},
     "sand_save_pct": {"min": 0.0, "max": 100.0},
-    "sg_total": {"min": -20.0, "max": 20.0},
-    "sg_off_the_tee": {"min": -10.0, "max": 10.0},
-    "sg_approach": {"min": -10.0, "max": 10.0},
-    "sg_around_green": {"min": -10.0, "max": 10.0},
-    "sg_putting": {"min": -10.0, "max": 10.0},
-    "birdie_avg": {"min": 0.0, "max": 18.0},
+    "par3_scoring_avg": {"min": 1.0, "max": 10.0},
+    "par4_scoring_avg": {"min": 2.0, "max": 15.0},
+    "par5_scoring_avg": {"min": 3.0, "max": 18.0},
+    "three_putt_avoidance": {"min": 0.0, "max": 100.0},
+    "bounce_back": {"min": 0.0, "max": 100.0},
+    "birdie_to_bogey_ratio": {"min": 0.0, "max": 10.0},
     "birdie_or_better_pct": {"min": 0.0, "max": 100.0},
     "bogey_avoidance_pct": {"min": 0.0, "max": 100.0},
 }
 
 
 def fetch_player_season_stats() -> pd.DataFrame:
-    columns = ",".join(FEATURE_COLUMNS + [SEASON_COLUMN, "wins"])
+    core_columns = [c for c in FEATURE_COLUMNS if c not in EXTENDED_STAT_CONFIG]
+    columns = ",".join(core_columns + [SEASON_COLUMN, "player_id", "wins"])
     rows = []
     offset = 0
     page_size = 1000
@@ -102,8 +131,47 @@ def fetch_player_season_stats() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def prepare_training_data(raw: pd.DataFrame) -> pd.DataFrame:
-    df = raw.copy()
+def fetch_extended_stats() -> pd.DataFrame:
+    """Fetches and pivots the 6 amateur-friendly replacement stats out of
+    the long-format player_extended_stats table into one row per
+    (season, player_id), one column per EXTENDED_STAT_CONFIG key.
+    """
+    frames = []
+    for stat_key, stat_name in EXTENDED_STAT_CONFIG.items():
+        rows = []
+        offset = 0
+        page_size = 1000
+        while True:
+            url = (
+                f"{SUPABASE_URL}/rest/v1/player_extended_stats"
+                f"?select=season,player_id,numeric_value"
+                f"&stat_key=eq.{stat_key}"
+                f"&stat_name=eq.{urllib.parse.quote(stat_name)}"
+                f"&offset={offset}&limit={page_size}"
+            )
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "apikey": SUPABASE_ANON_KEY,
+                    "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
+                },
+            )
+            page = json.loads(urllib.request.urlopen(req, timeout=30).read())
+            rows.extend(page)
+            if len(page) < page_size:
+                break
+            offset += page_size
+        frame = pd.DataFrame(rows).rename(columns={"numeric_value": stat_key})
+        frames.append(frame[[SEASON_COLUMN, "player_id", stat_key]])
+
+    merged = frames[0]
+    for frame in frames[1:]:
+        merged = merged.merge(frame, on=[SEASON_COLUMN, "player_id"], how="outer")
+    return merged
+
+
+def prepare_training_data(raw: pd.DataFrame, extended: pd.DataFrame) -> pd.DataFrame:
+    df = raw.merge(extended, on=[SEASON_COLUMN, "player_id"], how="left")
     df[TARGET_COLUMN] = (df["wins"].fillna(0) > 0).astype(int)
     missing_count = df[FEATURE_COLUMNS].isna().sum(axis=1)
     df = df[missing_count <= MAX_MISSING_FEATURES].reset_index(drop=True)
@@ -117,11 +185,15 @@ def build_pipeline() -> Pipeline:
     # ceiling turned out to be a genuine property of *linear* models on this
     # data: several of the 16 stats are naturally correlated in the real
     # training data (e.g. GIR% and Scrambling% partially trade off once
-    # driving/SG stats are already in the model), which both caps how
+    # driving stats are already in the model), which both caps how
     # confident an additive model can get about a realistic profile, and
     # occasionally makes an individual coefficient's sign counterintuitive
-    # (e.g. sg_total, which is literally the sum of the other 4 SG stats
-    # already in the model, could come out negative).
+    # (at the time, sg_total -- literally the sum of the other 4 Strokes
+    # Gained stats then in the model -- could come out negative; the SG
+    # stats and birdie_avg have since been replaced with amateur-trackable
+    # equivalents -- see EXTENDED_STAT_CONFIG -- since Strokes Gained needs
+    # tournament-grade ShotLink tracking a recreational golfer can't produce
+    # about their own game).
     #
     # Switched to HistGradientBoostingClassifier with per-feature monotonic
     # constraints (LOWER_IS_BETTER above) to fix both: a nonlinear model can
@@ -179,7 +251,11 @@ def main():
     raw = fetch_player_season_stats()
     print(f"  {len(raw)} rows fetched")
 
-    df = prepare_training_data(raw)
+    print("Fetching extended stats (par-type scoring, 3-putt avoidance, bounce back, birdie:bogey ratio)...")
+    extended = fetch_extended_stats()
+    print(f"  {len(extended)} player-seasons with extended stats")
+
+    df = prepare_training_data(raw, extended)
     print(f"  {len(df)} rows after dropping too-sparse rows")
     print(f"  {int(df[TARGET_COLUMN].sum())} win-seasons out of {len(df)}")
 

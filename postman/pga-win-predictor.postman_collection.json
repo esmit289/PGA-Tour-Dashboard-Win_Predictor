@@ -50,7 +50,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"scoring_avg\": 65.0,\n  \"driving_distance\": 450.0,\n  \"driving_accuracy_pct\": 90.0,\n  \"gir_pct\": 90.0,\n  \"putting_avg\": 0.5,\n  \"putts_per_round\": 10.0,\n  \"scrambling_pct\": 90.0,\n  \"sand_save_pct\": 90.0,\n  \"sg_total\": 16.0,\n  \"sg_off_the_tee\": 8.0,\n  \"sg_approach\": 8.0,\n  \"sg_around_green\": 8.0,\n  \"sg_putting\": 8.0,\n  \"birdie_avg\": 16.2,\n  \"birdie_or_better_pct\": 90.0,\n  \"bogey_avoidance_pct\": 10.0,\n  \"season\": 2024\n}"
+          "raw": "{\n  \"scoring_avg\": 65.0,\n  \"driving_distance\": 450.0,\n  \"driving_accuracy_pct\": 90.0,\n  \"gir_pct\": 90.0,\n  \"putting_avg\": 0.5,\n  \"putts_per_round\": 10.0,\n  \"scrambling_pct\": 90.0,\n  \"sand_save_pct\": 90.0,\n  \"par3_scoring_avg\": 9.1,\n  \"par4_scoring_avg\": 13.7,\n  \"par5_scoring_avg\": 16.5,\n  \"three_putt_avoidance\": 90.0,\n  \"bounce_back\": 90.0,\n  \"birdie_to_bogey_ratio\": 9.0,\n  \"birdie_or_better_pct\": 90.0,\n  \"bogey_avoidance_pct\": 10.0,\n  \"season\": 2024\n}"
         },
         "url": "{{base_url}}/predict"
       },
@@ -86,7 +86,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"scoring_avg\": 1200.0,\n  \"driving_distance\": 450.0,\n  \"driving_accuracy_pct\": 90.0,\n  \"gir_pct\": 90.0,\n  \"putting_avg\": 0.5,\n  \"putts_per_round\": 10.0,\n  \"scrambling_pct\": 90.0,\n  \"sand_save_pct\": 90.0,\n  \"sg_total\": 16.0,\n  \"sg_off_the_tee\": 8.0,\n  \"sg_approach\": 8.0,\n  \"sg_around_green\": 8.0,\n  \"sg_putting\": 8.0,\n  \"birdie_avg\": 16.2,\n  \"birdie_or_better_pct\": 90.0,\n  \"bogey_avoidance_pct\": 10.0,\n  \"season\": 2024\n}"
+          "raw": "{\n  \"scoring_avg\": 1200.0,\n  \"driving_distance\": 450.0,\n  \"driving_accuracy_pct\": 90.0,\n  \"gir_pct\": 90.0,\n  \"putting_avg\": 0.5,\n  \"putts_per_round\": 10.0,\n  \"scrambling_pct\": 90.0,\n  \"sand_save_pct\": 90.0,\n  \"par3_scoring_avg\": 9.1,\n  \"par4_scoring_avg\": 13.7,\n  \"par5_scoring_avg\": 16.5,\n  \"three_putt_avoidance\": 90.0,\n  \"bounce_back\": 90.0,\n  \"birdie_to_bogey_ratio\": 9.0,\n  \"birdie_or_better_pct\": 90.0,\n  \"bogey_avoidance_pct\": 10.0,\n  \"season\": 2024\n}"
         },
         "url": "{{base_url}}/predict"
       },
