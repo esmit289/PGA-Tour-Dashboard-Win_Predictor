@@ -46,6 +46,30 @@ SEASON_COLUMN = "season"
 TARGET_COLUMN = "has_win"
 MAX_MISSING_FEATURES = 8  # drop a row if more than half its features are null
 
+# Deliberately much wider than any real player's stat line -- this is a
+# "what if" toy, not a strict validity check. SeasonPercentileTransformer
+# safely clamps anything outside the training data's real range to a 0%
+# or 100% percentile (np.searchsorted), so widening these costs nothing in
+# correctness; it just lets people push the numbers to see what happens.
+FEATURE_INPUT_BOUNDS = {
+    "scoring_avg": {"min": 50.0, "max": 200.0},
+    "driving_distance": {"min": 0.0, "max": 500.0},
+    "driving_accuracy_pct": {"min": 0.0, "max": 100.0},
+    "gir_pct": {"min": 0.0, "max": 100.0},
+    "putting_avg": {"min": 0.0, "max": 5.0},
+    "putts_per_round": {"min": 0.0, "max": 100.0},
+    "scrambling_pct": {"min": 0.0, "max": 100.0},
+    "sand_save_pct": {"min": 0.0, "max": 100.0},
+    "sg_total": {"min": -20.0, "max": 20.0},
+    "sg_off_the_tee": {"min": -10.0, "max": 10.0},
+    "sg_approach": {"min": -10.0, "max": 10.0},
+    "sg_around_green": {"min": -10.0, "max": 10.0},
+    "sg_putting": {"min": -10.0, "max": 10.0},
+    "birdie_avg": {"min": 0.0, "max": 18.0},
+    "birdie_or_better_pct": {"min": 0.0, "max": 100.0},
+    "bogey_avoidance_pct": {"min": 0.0, "max": 100.0},
+}
+
 
 def fetch_player_season_stats() -> pd.DataFrame:
     columns = ",".join(FEATURE_COLUMNS + [SEASON_COLUMN, "wins"])
@@ -94,12 +118,11 @@ def build_pipeline() -> Pipeline:
     )
 
 
-def compute_feature_bounds(df: pd.DataFrame) -> dict:
-    bounds = {}
-    for col in FEATURE_COLUMNS:
-        series = df[col].dropna()
-        bounds[col] = {"min": float(series.min()), "max": float(series.max())}
-    return bounds
+def compute_feature_defaults(df: pd.DataFrame) -> dict:
+    """Realistic starting values for the input form -- the real per-feature
+    mean across training data, not the (now artificially wide) input bounds.
+    """
+    return {col: round(float(df[col].dropna().mean()), 3) for col in FEATURE_COLUMNS}
 
 
 def main():
@@ -123,7 +146,8 @@ def main():
         "pipeline": pipeline,
         "feature_columns": FEATURE_COLUMNS,
         "season_column": SEASON_COLUMN,
-        "feature_bounds": compute_feature_bounds(df),
+        "feature_bounds": FEATURE_INPUT_BOUNDS,
+        "feature_defaults": compute_feature_defaults(df),
         "metadata": {
             "steps": [name for name, _ in pipeline.steps],
             "built_at": datetime.now(timezone.utc).isoformat(),

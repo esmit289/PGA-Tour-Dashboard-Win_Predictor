@@ -13,6 +13,7 @@ def test_artifact_has_expected_structure():
         "feature_columns",
         "season_column",
         "feature_bounds",
+        "feature_defaults",
         "metadata",
     }
     assert bundle["metadata"]["steps"] == ["percentile", "clf"]

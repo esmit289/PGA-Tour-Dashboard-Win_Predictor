@@ -74,6 +74,7 @@ def info():
         "status": "ok",
         "metadata": bundle["metadata"],
         "feature_bounds": bundle["feature_bounds"],
+        "feature_defaults": bundle.get("feature_defaults", {}),
     }
 
 
