@@ -11,7 +11,8 @@ from datetime import datetime, timezone
 import joblib
 import pandas as pd
 import sklearn
-from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.inspection import permutation_importance
 from sklearn.pipeline import Pipeline
 
 from pipeline_def import SeasonPercentileTransformer
@@ -45,6 +46,11 @@ FEATURE_COLUMNS = [
 SEASON_COLUMN = "season"
 TARGET_COLUMN = "has_win"
 MAX_MISSING_FEATURES = 8  # drop a row if more than half its features are null
+
+# Stats where a LOWER raw value is the better golf outcome. Used both to
+# impose monotonic constraints on the classifier (see build_pipeline())
+# and to sign the permutation-importance chart the frontend displays.
+LOWER_IS_BETTER = {"scoring_avg", "putting_avg", "putts_per_round", "bogey_avoidance_pct"}
 
 # Deliberately much wider than any real player's stat line -- this is a
 # "what if" toy, not a strict validity check. SeasonPercentileTransformer
@@ -105,30 +111,38 @@ def prepare_training_data(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_pipeline() -> Pipeline:
-    # No class_weight="balanced" here on purpose: it improves the 0.5-
-    # threshold decision boundary but skews predict_proba() upward for the
-    # minority (win) class -- an "every stat at the tour average" profile
-    # came out to a 36% win chance under balanced weighting, vs the true
-    # ~20% base rate. This app's headline number *is* win_probability, so
-    # calibration matters more than threshold accuracy here. Dropping the
-    # reweighting costs ~0.003 AUC (0.766 -> 0.763, verified via 5-fold CV)
-    # and brings the "average player" prediction back in line with reality.
+    # History: this started as a LogisticRegression (see git history for the
+    # class_weight/C tuning that fixed probability calibration and pushed
+    # its ceiling from 86% to 92% for a realistic dominant stat line). That
+    # ceiling turned out to be a genuine property of *linear* models on this
+    # data: several of the 16 stats are naturally correlated in the real
+    # training data (e.g. GIR% and Scrambling% partially trade off once
+    # driving/SG stats are already in the model), which both caps how
+    # confident an additive model can get about a realistic profile, and
+    # occasionally makes an individual coefficient's sign counterintuitive
+    # (e.g. sg_total, which is literally the sum of the other 4 SG stats
+    # already in the model, could come out negative).
     #
-    # C=50 (default is 1.0, i.e. 50x less L2 regularization): the default
-    # shrinks coefficients enough that even a maxed-out-everywhere stat line
-    # can only reach ~97%, and a realistic (not literally perfect-on-every-
-    # stat) dominant profile landed at 86%. Sweeping C from 1 to 5000 (5-fold
-    # CV, AUC unchanged the whole way) shows the realistic-dominant-profile
-    # prediction rises with C but genuinely plateaus around 92% by C=50 --
-    # past that point it's flat no matter how high C goes, because several
-    # of the 16 stats are naturally correlated with each other in the real
-    # data (e.g. GIR% and Scrambling% partially trade off once driving/SG
-    # stats are already in the model), which caps how confident a *linear*
-    # model can get about any realistic, non-adversarial input regardless
-    # of regularization strength. C=50 captures the full available gain
-    # from this lever: maxed-out-everywhere ceiling ~99.9%, a realistic
-    # dominant profile ~92%, "average player" calibration point unchanged
-    # (~10.7%), 5-fold CV AUC unchanged (0.763).
+    # Switched to HistGradientBoostingClassifier with per-feature monotonic
+    # constraints (LOWER_IS_BETTER above) to fix both: a nonlinear model can
+    # recognize "this whole profile looks elite" as a pattern rather than a
+    # strict sum of parts, and the monotonic constraints guarantee every
+    # feature's effect points the intuitively-correct direction (no more
+    # sign flips), which also lets genuinely great profiles compound toward
+    # high confidence instead of fighting a wrong-signed feature.
+    #
+    # This is a deliberate accuracy/confidence trade-off, not a free win:
+    # 5-fold CV AUC drops from 0.763 (tuned LogisticRegression) to 0.742 --
+    # tested 6+ configurations (varying depth/learning-rate/regularization,
+    # with and without monotonic constraints) and AUC consistently landed
+    # ~0.74-0.75 regardless, so this is a real property of gradient
+    # boosting on a dataset this size (1,919 rows), not a tuning miss. In
+    # exchange, a realistic dominant profile reaches ~99.5% (up from 92%)
+    # and a bad-amateur profile is ~0.0%. Accepted deliberately for this
+    # project: it's a class assignment meant to be fun to play with, not a
+    # production system where the extra AUC would matter more than the
+    # more satisfying (and now guaranteed-intuitive-direction) predictions.
+    monotonic_cst = [(-1 if c in LOWER_IS_BETTER else 1) for c in FEATURE_COLUMNS]
     return Pipeline(
         [
             (
@@ -137,7 +151,18 @@ def build_pipeline() -> Pipeline:
                     feature_columns=FEATURE_COLUMNS, season_column=SEASON_COLUMN
                 ),
             ),
-            ("clf", LogisticRegression(max_iter=1000, C=50.0)),
+            (
+                "clf",
+                HistGradientBoostingClassifier(
+                    max_iter=200,
+                    max_depth=3,
+                    min_samples_leaf=30,
+                    l2_regularization=1.0,
+                    learning_rate=0.05,
+                    monotonic_cst=monotonic_cst,
+                    random_state=42,
+                ),
+            ),
         ]
     )
 
@@ -163,8 +188,30 @@ def main():
     y = df[TARGET_COLUMN]
     pipeline.fit(X, y)
 
-    clf = pipeline.named_steps["clf"]
-    coefficients = dict(zip(FEATURE_COLUMNS, clf.coef_[0].tolist()))
+    # HistGradientBoostingClassifier has no .coef_ (it's a tree ensemble,
+    # not linear), so "what leads to wins" is expressed as permutation
+    # importance -- how much shuffling one column hurts the pipeline's AUC
+    # -- signed by the monotonic direction we already imposed on that
+    # feature (LOWER_IS_BETTER), so the frontend's existing signed-bar
+    # chart keeps working unchanged and every sign is now guaranteed to
+    # point the intuitively-correct way (no more sign flips from
+    # collinearity, unlike the earlier LogisticRegression version).
+    print("Computing permutation importance...")
+    importance = permutation_importance(
+        pipeline, X, y, n_repeats=20, random_state=42, scoring="roc_auc"
+    )
+    # Permutation importance can come out slightly negative for a
+    # near-zero-importance feature purely from shuffling noise, even though
+    # monotonic_cst guarantees the model's true effect for that feature is
+    # non-negative in its assigned direction -- clip before signing so the
+    # chart never shows a spuriously wrong-signed sliver for a redundant
+    # feature (e.g. sg_total, whose info is already captured by its own
+    # four components).
+    importance_by_col = dict(zip(X.columns, importance.importances_mean))
+    coefficients = {
+        col: max(0.0, float(importance_by_col[col])) * (-1.0 if col in LOWER_IS_BETTER else 1.0)
+        for col in FEATURE_COLUMNS
+    }
 
     bundle = {
         "pipeline": pipeline,
