@@ -50,7 +50,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"scoring_avg\": 68.804,\n  \"driving_distance\": 324.91,\n  \"driving_accuracy_pct\": 72.704,\n  \"gir_pct\": 72.192,\n  \"putting_avg\": 1.687,\n  \"putts_per_round\": 27.717,\n  \"scrambling_pct\": 68.234,\n  \"sand_save_pct\": 66.972,\n  \"sg_total\": 2.123,\n  \"sg_off_the_tee\": 0.95,\n  \"sg_approach\": 1.13,\n  \"sg_around_green\": 0.539,\n  \"sg_putting\": 0.891,\n  \"birdie_avg\": 4.708,\n  \"birdie_or_better_pct\": 26.547,\n  \"bogey_avoidance_pct\": 11.201,\n  \"season\": 2024\n}"
+          "raw": "{\n  \"scoring_avg\": 65.0,\n  \"driving_distance\": 450.0,\n  \"driving_accuracy_pct\": 90.0,\n  \"gir_pct\": 90.0,\n  \"putting_avg\": 0.5,\n  \"putts_per_round\": 10.0,\n  \"scrambling_pct\": 90.0,\n  \"sand_save_pct\": 90.0,\n  \"sg_total\": 16.0,\n  \"sg_off_the_tee\": 8.0,\n  \"sg_approach\": 8.0,\n  \"sg_around_green\": 8.0,\n  \"sg_putting\": 8.0,\n  \"birdie_avg\": 16.2,\n  \"birdie_or_better_pct\": 90.0,\n  \"bogey_avoidance_pct\": 10.0,\n  \"season\": 2024\n}"
         },
         "url": "{{base_url}}/predict"
       },
@@ -86,7 +86,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"scoring_avg\": 1074.865,\n  \"driving_distance\": 324.91,\n  \"driving_accuracy_pct\": 72.704,\n  \"gir_pct\": 72.192,\n  \"putting_avg\": 1.687,\n  \"putts_per_round\": 27.717,\n  \"scrambling_pct\": 68.234,\n  \"sand_save_pct\": 66.972,\n  \"sg_total\": 2.123,\n  \"sg_off_the_tee\": 0.95,\n  \"sg_approach\": 1.13,\n  \"sg_around_green\": 0.539,\n  \"sg_putting\": 0.891,\n  \"birdie_avg\": 4.708,\n  \"birdie_or_better_pct\": 26.547,\n  \"bogey_avoidance_pct\": 11.201,\n  \"season\": 2024\n}"
+          "raw": "{\n  \"scoring_avg\": 1200.0,\n  \"driving_distance\": 450.0,\n  \"driving_accuracy_pct\": 90.0,\n  \"gir_pct\": 90.0,\n  \"putting_avg\": 0.5,\n  \"putts_per_round\": 10.0,\n  \"scrambling_pct\": 90.0,\n  \"sand_save_pct\": 90.0,\n  \"sg_total\": 16.0,\n  \"sg_off_the_tee\": 8.0,\n  \"sg_approach\": 8.0,\n  \"sg_around_green\": 8.0,\n  \"sg_putting\": 8.0,\n  \"birdie_avg\": 16.2,\n  \"birdie_or_better_pct\": 90.0,\n  \"bogey_avoidance_pct\": 10.0,\n  \"season\": 2024\n}"
         },
         "url": "{{base_url}}/predict"
       },
