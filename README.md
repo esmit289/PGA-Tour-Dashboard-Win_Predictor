@@ -33,8 +33,16 @@ on that project's Supabase `player_season_stats` table.
 5-fold stratified cross-validation on the 1,919 player-seasons used for
 training (19.6% of which included at least one win):
 
-- ROC AUC: 0.766
-- Balanced accuracy: 0.701
+- ROC AUC: 0.763
+- Balanced accuracy: 0.610
+
+The classifier is deliberately trained *without* `class_weight="balanced"`.
+Balanced weighting barely changed AUC (0.766 vs 0.763) but skewed
+`predict_proba()` upward for the minority (win) class -- an all-tour-average
+stat line came out to a 36% win chance under balanced weighting, well above
+the true ~20% base rate. Since this app's headline number *is*
+win_probability (not just a win/no-win flag), calibration matters more than
+threshold accuracy here, so the unweighted model is the one that's deployed.
 
 Note on interpreting the coefficients: several features are structurally
 correlated (`sg_total` is the arithmetic sum of `sg_off_the_tee` +

@@ -105,6 +105,14 @@ def prepare_training_data(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_pipeline() -> Pipeline:
+    # No class_weight="balanced" here on purpose: it improves the 0.5-
+    # threshold decision boundary but skews predict_proba() upward for the
+    # minority (win) class -- an "every stat at the tour average" profile
+    # came out to a 36% win chance under balanced weighting, vs the true
+    # ~20% base rate. This app's headline number *is* win_probability, so
+    # calibration matters more than threshold accuracy here. Dropping the
+    # reweighting costs ~0.003 AUC (0.766 -> 0.763, verified via 5-fold CV)
+    # and brings the "average player" prediction back in line with reality.
     return Pipeline(
         [
             (
@@ -113,7 +121,7 @@ def build_pipeline() -> Pipeline:
                     feature_columns=FEATURE_COLUMNS, season_column=SEASON_COLUMN
                 ),
             ),
-            ("clf", LogisticRegression(max_iter=1000, class_weight="balanced")),
+            ("clf", LogisticRegression(max_iter=1000)),
         ]
     )
 
